@@ -46,6 +46,16 @@
         </div>
       </section>
 
+      <section class="hidden" id="details">
+        <div class="section-title" style="margin-top:0">📋 Complete seus dados</div>
+        <p><strong id="details-hello"></strong><br>Falta pouco: preencha os dados abaixo para liberar o seu prêmio.</p>
+        <form id="details-form" class="card" novalidate>
+          <div id="details-fields" style="display:grid;gap:12px"></div>
+          <div id="details-error" class="alert error hidden"></div>
+          <button class="btn-cta" type="submit" style="margin-bottom:0">Liberar meu prêmio</button>
+        </form>
+      </section>
+
       <section class="card center hidden" id="result">
         <div style="font-size:3rem">🎁</div>
         <p class="muted" id="result-hello"></p>
@@ -93,17 +103,8 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'Não foi possível enviar. Tente novamente.');
 
-        $('result-hello').textContent = `Parabéns, ${data.name.split(' ')[0]}! Cadastro confirmado.`;
-        $('prize-title').textContent = data.prizeTitle;
-        $('prize-description').textContent = data.prizeDescription;
-        $('already').classList.toggle('hidden', !data.alreadyRedeemed);
-        if (data.prizeUrl) {
-          $('prize-download').href = data.prizeUrl;
-          $('prize-download').classList.remove('hidden');
-        }
-        $('register').classList.add('hidden');
-        $('result').classList.remove('hidden');
-        window.scrollTo(0, 0);
+        if (data.step === 'details') showDetails(data);
+        else showPrize(data);
       } catch (err) {
         showError($('error'), err.message);
       } finally {
@@ -111,6 +112,75 @@
         button.textContent = 'Enviar cadastro';
       }
     });
+
+    function showStep(id) {
+      for (const s of ['register', 'details', 'result']) $(s).classList.toggle('hidden', s !== id);
+      window.scrollTo(0, 0);
+    }
+
+    // ---------- Passo 2: os 5 dados ----------
+
+    let formToken = null;
+
+    function showDetails(data) {
+      formToken = data.formToken;
+      $('details-hello').textContent = `Certificado aceito, ${data.name.split(' ')[0]}! ✅`;
+      const box = $('details-fields');
+      box.textContent = '';
+      for (const field of data.fields) {
+        const label = document.createElement('label');
+        label.textContent = field.label + (field.obrigatorio ? '' : ' (opcional)');
+        let input;
+        if (field.tipo === 'opcoes') {
+          input = document.createElement('select');
+          input.append(new Option('Escolha…', ''));
+          for (const option of field.opcoes) input.append(new Option(option, option));
+        } else if (field.tipo === 'texto-longo') {
+          input = document.createElement('textarea');
+          input.rows = 3;
+        } else {
+          input = document.createElement('input');
+          input.type = { telefone: 'tel', email: 'email', data: 'date', numero: 'text' }[field.tipo] || 'text';
+          if (field.tipo === 'telefone' || field.tipo === 'numero') input.inputMode = 'numeric';
+        }
+        input.name = field.id;
+        input.placeholder = field.placeholder || '';
+        input.required = field.obrigatorio;
+        label.append(input);
+        box.append(label);
+      }
+      showStep('details');
+    }
+
+    $('details-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('details-error').classList.add('hidden');
+      const button = e.target.querySelector('button[type=submit]');
+      button.disabled = true;
+      try {
+        const answers = Object.fromEntries(new FormData(e.target));
+        const data = await api('/api/register/details', { method: 'POST', body: { formToken, answers } });
+        showPrize(data);
+      } catch (err) {
+        showError($('details-error'), err.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    // ---------- Passo 3: prêmio ----------
+
+    function showPrize(data) {
+      $('result-hello').textContent = `Parabéns, ${data.name.split(' ')[0]}! Cadastro confirmado.`;
+      $('prize-title').textContent = data.prizeTitle;
+      $('prize-description').textContent = data.prizeDescription;
+      $('already').classList.toggle('hidden', !data.alreadyRedeemed);
+      if (data.prizeUrl) {
+        $('prize-download').href = data.prizeUrl;
+        $('prize-download').classList.remove('hidden');
+      }
+      showStep('result');
+    }
   </script>
 </body>
 </html>

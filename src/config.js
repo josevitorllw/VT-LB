@@ -37,5 +37,6 @@ module.exports = {
   },
 
   webhookSecret: env.WEBHOOK_SECRET || '',
+  adminPassword: env.ADMIN_PASSWORD || '',
   dbFile: path.join(root, 'data', 'loja.db'),
 };

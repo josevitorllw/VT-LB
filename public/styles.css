@@ -182,7 +182,7 @@ mark {
 
 form { display: grid; gap: 12px; margin-top: 16px; }
 label { display: grid; gap: 4px; font-weight: 600; font-size: .92rem; }
-input {
+input, select, textarea {
   font: inherit;
   font-size: 16px;
   padding: 12px;
@@ -192,7 +192,7 @@ input {
   color: var(--text);
   width: 100%;
 }
-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
 
 .btn {
   font: inherit;

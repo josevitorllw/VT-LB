@@ -9,6 +9,8 @@ const db = require('./db');
 const payments = require('./payments');
 const { certificateCode, token } = require('./codes');
 const { buildEbookWithCertificate, readCertificateCode } = require('./certificatePdf');
+const { publicFields, validateAnswers } = require('./fields');
+const adminRouter = require('./admin');
 
 const app = express();
 app.set('trust proxy', true);
@@ -230,23 +232,44 @@ app.post(
       return res.status(400).json({ error: 'Este certificado não pertence ao CPF informado.' });
     }
 
-    if (!cert.redeemed_at) {
-      db.prepare(
-        "UPDATE certificates SET redeemed_at = datetime('now'), prize_token = ?, registered_name = ? WHERE code = ? AND redeemed_at IS NULL"
-      ).run(token(), name, code);
-    }
-    const saved = getCertificate.get(code);
+    // Quem já cadastrou tudo pode ver o prêmio de novo, mas não ganha outro.
+    if (cert.redeemed_at) return res.json(prizeResponse(cert, true));
 
-    // Quem já cadastrou pode ver o prêmio de novo, mas não ganha outro.
-    res.json({
-      alreadyRedeemed: Boolean(cert.redeemed_at),
-      name: saved.registered_name || saved.name,
-      prizeTitle: config.prize.title,
-      prizeDescription: config.prize.description,
-      prizeUrl: config.prize.file && fs.existsSync(config.prize.file) ? `/premio/download/${saved.prize_token}` : null,
-    });
+    // Certificado aceito: próximo passo é a tela dos 5 dados.
+    const formToken = cert.form_token || token();
+    db.prepare('UPDATE certificates SET form_token = ?, registered_name = ? WHERE code = ?').run(formToken, name, code);
+    res.json({ step: 'details', formToken, name, fields: publicFields() });
   }
 );
+
+function prizeResponse(cert, alreadyRedeemed) {
+  return {
+    step: 'prize',
+    alreadyRedeemed,
+    name: cert.registered_name || cert.name,
+    prizeTitle: config.prize.title,
+    prizeDescription: config.prize.description,
+    prizeUrl: config.prize.file && fs.existsSync(config.prize.file) ? `/premio/download/${cert.prize_token}` : null,
+  };
+}
+
+// Tela dos 5 dados: salva as respostas e libera o prêmio.
+app.post('/api/register/details', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }), (req, res) => {
+  const formToken = String(req.body.formToken || '');
+  const cert = formToken && db.prepare('SELECT * FROM certificates WHERE form_token = ?').get(formToken);
+  if (!cert) return res.status(400).json({ error: 'Cadastro expirado. Anexe o certificado de novo.' });
+  if (cert.redeemed_at) return res.json(prizeResponse(cert, true));
+
+  const { values, error } = validateAnswers(req.body.answers);
+  if (error) return res.status(400).json({ error });
+
+  db.prepare(
+    `UPDATE certificates
+        SET details_json = ?, details_at = datetime('now'), redeemed_at = datetime('now'), prize_token = ?
+      WHERE code = ? AND redeemed_at IS NULL`
+  ).run(JSON.stringify(values), token(), cert.code);
+  res.json(prizeResponse(getCertificate.get(cert.code), false));
+});
 
 // ---------- Downloads protegidos ----------
 
@@ -282,6 +305,7 @@ app.get('/cadastro', page('cadastro.html'));
 app.get('/comprar', page('comprar.html'));
 app.get('/pedido/:id', page('pedido.html'));
 app.get('/premio', (req, res) => res.redirect('/cadastro'));
+app.use('/admin', adminRouter);
 app.use(express.static(publicDir, { index: false }));
 
 app.listen(config.port, () => {
