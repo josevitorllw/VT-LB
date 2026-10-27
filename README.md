@@ -39,6 +39,12 @@ de quem pagou ou resgatou o prêmio.
 
 Título, preço (em centavos: `4790` = R$ 47,90) e texto do prêmio ficam no `.env`.
 
+## Textos e capa da página de venda
+
+- **Capa:** coloque a imagem em `public/img/capa.jpg`.
+- **Textos:** abra `public/index.html` e troque os textos entre `[colchetes]` (Sobre o Ebook, O que você vai
+  aprender, Quem é o autor). Para destacar uma parte em azul, use `<mark>texto</mark>`.
+
 ## Ligar a BlackCat (cobrança de verdade)
 
 1. No painel da BlackCat, gere sua **chave de API**.

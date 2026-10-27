@@ -7,31 +7,65 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <!--
+    COMO EDITAR ESTA PÁGINA
+    - Título, preço e nome do prêmio vêm do arquivo .env (EBOOK_TITLE, EBOOK_PRICE_CENTS, PRIZE_TITLE).
+    - A capa é o arquivo public/img/capa.jpg.
+    - Os textos entre [colchetes] abaixo são para você trocar pelos seus.
+    - Use <mark>texto</mark> para destacar uma parte importante.
+  -->
   <header class="site">
     <div class="container">
-      <a class="brand" href="/">VT LB</a>
-      <nav><a href="/premio">Resgatar prêmio</a></nav>
+      <a class="brand" href="/">📘 VT LB</a>
+      <nav><a href="/premio">🎁 Resgatar prêmio</a></nav>
     </div>
   </header>
 
   <main>
-    <div class="container hero">
-      <section>
-        <span class="eyebrow">Ebook + certificado + prêmio</span>
-        <h1 id="title">Carregando…</h1>
-        <p class="lead" id="subtitle"></p>
+    <div class="container">
+      <h1 id="title">Carregando…</h1>
+      <img class="cover" id="cover" src="/img/capa.jpg" alt="Capa do ebook">
 
-        <h2>Como funciona</h2>
-        <ol class="steps">
-          <li><span class="num">1</span><span><strong>Compre o ebook</strong> com Pix em poucos segundos.</span></li>
-          <li><span class="num">2</span><span><strong>Baixe o ebook e receba seu certificado</strong> com um código exclusivo.</span></li>
-          <li><span class="num">3</span><span><strong>Cadastre o certificado</strong> na página de prêmios e ganhe <strong id="prize-name">um prêmio</strong>.</span></li>
-        </ol>
-      </section>
+      <div class="price-row">
+        <strong id="price-top">—</strong>
+        <span>pagamento único no Pix</span>
+      </div>
+      <a class="btn-cta" href="#comprar" id="cta-top">Clique aqui para comprar</a>
 
-      <section class="card" id="comprar">
-        <p class="muted">Pagamento único</p>
-        <p class="price" id="price">—</p>
+      <div class="section-title">📖 Sobre o Ebook</div>
+      <p id="subtitle"></p>
+      <p>[Conte aqui sobre o ebook: para quem ele é, qual problema ele resolve e por que você escreveu.]</p>
+      <p>[Use <mark>marcações assim</mark> para destacar as partes mais importantes.]</p>
+
+      <div class="section-title">🎯 O que você vai aprender</div>
+      <ul class="list-plain">
+        <li><mark>[Capítulo 1]</mark> [O que a pessoa aprende nele.]</li>
+        <li><mark>[Capítulo 2]</mark> [O que a pessoa aprende nele.]</li>
+        <li><mark>[Capítulo 3]</mark> [O que a pessoa aprende nele.]</li>
+      </ul>
+
+      <div class="section-title">🏆 Certificado + Prêmio</div>
+      <ol class="steps">
+        <li><span class="num">1</span><span><strong>Compre o ebook</strong> no Pix. A liberação é na hora.</span></li>
+        <li><span class="num">2</span><span><strong>Receba seu certificado</strong> com o seu nome e um código exclusivo.</span></li>
+        <li><span class="num">3</span><span><strong>Cadastre o código</strong> na página de prêmios e ganhe <mark id="prize-name">um prêmio</mark>.</span></li>
+      </ol>
+
+      <div class="section-title">💰 Investimento</div>
+      <p>Valor: <mark id="price-mid">—</mark></p>
+      <p>Pagamento único pelo Pix. Sem mensalidade. Você baixa o ebook assim que o pagamento é confirmado.</p>
+
+      <div class="section-title">🤝 Quem é o autor</div>
+      <p>[Escreva aqui quem você é, sua experiência e seu <strong>@perfil</strong> nas redes sociais.]</p>
+
+      <p class="help-title">❤️ <mark>Ficou com dúvida?</mark></p>
+      <p><mark>Pagamento:</mark> é feito pelo Pix, com QR Code ou código copia e cola.</p>
+      <p><mark>Entrega:</mark> o botão para baixar aparece na hora, assim que o Pix é confirmado.</p>
+      <p><mark>Prêmio:</mark> guarde o código do certificado e o e-mail usado na compra. 🙏</p>
+
+      <section class="card buy-box" id="comprar">
+        <p class="big-price" id="price">—</p>
+        <p class="under">pagamento único · ebook + certificado + prêmio</p>
 
         <div id="test-mode" class="alert warn hidden" style="margin-top:12px">
           Modo de teste: nenhuma cobrança real será feita.
@@ -51,32 +85,73 @@
             <input name="document" inputmode="numeric" placeholder="000.000.000-00" required>
           </label>
           <div id="error" class="alert error hidden"></div>
-          <button class="btn block" type="submit">Comprar com Pix</button>
-          <p class="muted center">Guarde o e-mail informado: ele será usado para resgatar o prêmio.</p>
+          <button class="btn block" type="submit">Comprar agora</button>
+          <button class="btn secondary block" type="button" id="share">Compartilhar</button>
         </form>
       </section>
     </div>
   </main>
 
+  <div class="sticky-cta" id="sticky-cta">
+    <a class="btn-cta" href="#comprar">Clique aqui para comprar</a>
+  </div>
+
   <footer class="site"><div class="container">© VT LB</div></footer>
 
   <script src="/js/common.js"></script>
   <script>
+    const $ = (id) => document.getElementById(id);
+
+    // Sem capa ainda: mostra um espaço reservado. Confere também se a imagem já falhou antes do script rodar.
+    const cover = $('cover');
+    const coverPlaceholder = () => {
+      cover.src = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000"><rect width="100%" height="100%" fill="#dcdfe4"/>' +
+        '<rect x="730" y="380" width="140" height="100" rx="14" fill="none" stroke="#9ca3af" stroke-width="10"/>' +
+        '<circle cx="800" cy="430" r="28" fill="none" stroke="#9ca3af" stroke-width="10"/>' +
+        '<text x="50%" y="600" font-family="sans-serif" font-size="44" fill="#9ca3af" text-anchor="middle">Coloque a capa em public/img/capa.jpg</text></svg>');
+    };
+    if (cover.complete && !cover.naturalWidth) coverPlaceholder();
+    else cover.addEventListener('error', coverPlaceholder, { once: true });
+
     api('/api/config').then((cfg) => {
       document.title = cfg.ebookTitle;
-      document.getElementById('title').textContent = cfg.ebookTitle;
-      document.getElementById('subtitle').textContent = cfg.ebookSubtitle;
-      document.getElementById('price').textContent = formatBRL(cfg.priceCents);
-      document.getElementById('prize-name').textContent = cfg.prizeTitle;
-      if (cfg.testMode) document.getElementById('test-mode').classList.remove('hidden');
+      $('title').textContent = cfg.ebookTitle;
+      $('subtitle').textContent = cfg.ebookSubtitle;
+      $('subtitle').classList.toggle('hidden', !cfg.ebookSubtitle);
+      for (const id of ['price', 'price-top', 'price-mid']) $(id).textContent = formatBRL(cfg.priceCents);
+      $('prize-name').textContent = cfg.prizeTitle;
+      if (cfg.testMode) $('test-mode').classList.remove('hidden');
     });
 
-    const form = document.getElementById('buy-form');
-    const error = document.getElementById('error');
+    // Botão fixo: aparece depois que o botão do topo sai da tela e some quando a área de compra aparece.
+    let topVisible = true;
+    let buyVisible = false;
+    const updateSticky = () => $('sticky-cta').classList.toggle('show', !topVisible && !buyVisible);
+    new IntersectionObserver(([e]) => { topVisible = e.isIntersecting; updateSticky(); }).observe($('cta-top'));
+    new IntersectionObserver(([e]) => { buyVisible = e.isIntersecting; updateSticky(); }).observe($('comprar'));
+
+    // Rolagem suave até a compra e foco no primeiro campo.
+    document.querySelectorAll('a[href="#comprar"]').forEach((a) => a.addEventListener('click', (e) => {
+      e.preventDefault();
+      $('comprar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => $('buy-form').name.focus({ preventScroll: true }), 500);
+    }));
+
+    $('share').addEventListener('click', async (e) => {
+      const data = { title: document.title, url: location.origin };
+      if (navigator.share) {
+        try { await navigator.share(data); } catch {}
+      } else {
+        copyText(location.origin, e.target);
+      }
+    });
+
+    const form = $('buy-form');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      error.classList.add('hidden');
-      const button = form.querySelector('button');
+      $('error').classList.add('hidden');
+      const button = form.querySelector('button[type=submit]');
       button.disabled = true;
       button.textContent = 'Gerando Pix…';
       try {
@@ -84,9 +159,9 @@
         const order = await api('/api/orders', { method: 'POST', body: data });
         location.href = `/pedido/${order.id}`;
       } catch (err) {
-        showError(error, err.message);
+        showError($('error'), err.message);
         button.disabled = false;
-        button.textContent = 'Comprar com Pix';
+        button.textContent = 'Comprar agora';
       }
     });
   </script>
