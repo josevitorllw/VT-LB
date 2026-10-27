@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seu pedido</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="brand" href="/">VT LB</a>
+      <nav><a href="/premio">Resgatar prêmio</a></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container narrow">
+      <div id="loading" class="card center"><span class="spinner"></span> Carregando pedido…</div>
+
+      <!-- Aguardando pagamento -->
+      <section id="pending" class="card center hidden">
+        <h2>Pague com Pix</h2>
+        <p class="muted">Escaneie o QR Code no app do seu banco ou use o Pix copia e cola.</p>
+        <img id="qr" class="qr" alt="QR Code do Pix">
+        <div class="pix-code" id="pix-code"></div>
+        <button class="btn block" id="copy-pix">Copiar código Pix</button>
+        <p class="muted" style="margin-top:16px"><span class="spinner"></span> Aguardando pagamento… esta página atualiza sozinha.</p>
+        <button class="btn secondary block hidden" id="simulate">Simular pagamento (modo de teste)</button>
+      </section>
+
+      <!-- Pago -->
+      <section id="paid" class="card hidden">
+        <div class="alert ok">Pagamento confirmado! Obrigado pela compra, <strong id="buyer"></strong>.</div>
+        <h2 style="margin-top:20px">Seu certificado</h2>
+        <p class="muted">Guarde este código. Você vai usá-lo, junto com seu e-mail, para resgatar o prêmio.</p>
+        <div class="code-box" id="cert-code"></div>
+        <div class="actions">
+          <a class="btn" id="download">Baixar o ebook</a>
+          <a class="btn secondary" id="cert-link">Ver e imprimir certificado</a>
+          <a class="btn secondary" href="/premio" id="prize-link">Resgatar meu prêmio</a>
+        </div>
+        <p class="muted" style="margin-top:16px">Salve o link desta página para voltar quando quiser.</p>
+      </section>
+
+      <!-- Falhou -->
+      <section id="failed" class="card center hidden">
+        <div class="alert error">Este pagamento não foi concluído ou expirou.</div>
+        <p><a class="btn" href="/">Tentar novamente</a></p>
+      </section>
+
+      <div id="error" class="alert error hidden"></div>
+    </div>
+  </main>
+
+  <script src="/js/common.js"></script>
+  <script>
+    const orderId = location.pathname.split('/').pop();
+    const $ = (id) => document.getElementById(id);
+    let timer;
+
+    function show(section) {
+      for (const id of ['loading', 'pending', 'paid', 'failed']) $(id).classList.toggle('hidden', id !== section);
+    }
+
+    async function load() {
+      try {
+        const order = await api(`/api/orders/${orderId}`);
+        if (order.status === 'pending') {
+          $('qr').src = order.pixQrImage;
+          $('pix-code').textContent = order.pixCode;
+          $('simulate').classList.toggle('hidden', !order.testMode);
+          show('pending');
+          timer = setTimeout(load, 5000);
+        } else if (order.status === 'paid') {
+          $('buyer').textContent = order.name.split(' ')[0];
+          $('cert-code').textContent = order.certificateCode;
+          $('download').href = order.downloadUrl;
+          $('cert-link').href = order.certificateUrl;
+          $('prize-link').href = `/premio?codigo=${encodeURIComponent(order.certificateCode)}`;
+          show('paid');
+        } else {
+          show('failed');
+        }
+      } catch (err) {
+        show(null);
+        showError($('error'), err.message);
+      }
+    }
+
+    $('copy-pix').addEventListener('click', (e) => copyText($('pix-code').textContent, e.target));
+    $('simulate').addEventListener('click', async () => {
+      clearTimeout(timer);
+      await api(`/api/orders/${orderId}/simulate-payment`, { method: 'POST' });
+      load();
+    });
+
+    load();
+  </script>
+</body>
+</html>

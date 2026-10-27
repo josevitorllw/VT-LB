@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resgatar prêmio</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="brand" href="/">VT LB</a>
+      <nav><a href="/">Comprar ebook</a></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container narrow">
+      <section class="card" id="redeem">
+        <span class="eyebrow">Prêmio</span>
+        <h1 style="font-size:1.9rem">Cadastre seu certificado</h1>
+        <p class="muted">Digite o código do certificado que você recebeu após a compra e o e-mail usado no pagamento.</p>
+
+        <form id="redeem-form" novalidate>
+          <label>Código do certificado
+            <input name="code" placeholder="VTLB-XXXX-XXXX" autocapitalize="characters" required>
+          </label>
+          <label>E-mail da compra
+            <input name="email" type="email" autocomplete="email" required>
+          </label>
+          <div id="error" class="alert error hidden"></div>
+          <button class="btn block" type="submit">Resgatar prêmio</button>
+        </form>
+        <p class="muted center" style="margin-top:16px">Ainda não tem certificado? <a href="/">Compre o ebook</a>.</p>
+      </section>
+
+      <section class="card center hidden" id="result">
+        <div style="font-size:3rem">🎁</div>
+        <h1 style="font-size:1.9rem" id="prize-title"></h1>
+        <p id="prize-description"></p>
+        <div id="already" class="alert warn hidden">Este certificado já tinha sido usado. Aqui está o seu prêmio novamente.</div>
+        <div class="actions">
+          <a class="btn hidden" id="prize-download">Baixar meu prêmio</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/js/common.js"></script>
+  <script>
+    const form = document.getElementById('redeem-form');
+    const error = document.getElementById('error');
+    const preset = new URLSearchParams(location.search).get('codigo');
+    if (preset) form.code.value = preset;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      error.classList.add('hidden');
+      const button = form.querySelector('button');
+      button.disabled = true;
+      try {
+        const data = Object.fromEntries(new FormData(form));
+        const prize = await api('/api/redeem', { method: 'POST', body: data });
+        document.getElementById('prize-title').textContent = prize.prizeTitle;
+        document.getElementById('prize-description').textContent = prize.prizeDescription;
+        document.getElementById('already').classList.toggle('hidden', !prize.alreadyRedeemed);
+        if (prize.prizeUrl) {
+          const link = document.getElementById('prize-download');
+          link.href = prize.prizeUrl;
+          link.classList.remove('hidden');
+        }
+        document.getElementById('redeem').classList.add('hidden');
+        document.getElementById('result').classList.remove('hidden');
+      } catch (err) {
+        showError(error, err.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

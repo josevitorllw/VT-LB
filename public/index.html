@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ebook</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="brand" href="/">VT LB</a>
+      <nav><a href="/premio">Resgatar prêmio</a></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container hero">
+      <section>
+        <span class="eyebrow">Ebook + certificado + prêmio</span>
+        <h1 id="title">Carregando…</h1>
+        <p class="lead" id="subtitle"></p>
+
+        <h2>Como funciona</h2>
+        <ol class="steps">
+          <li><span class="num">1</span><span><strong>Compre o ebook</strong> com Pix em poucos segundos.</span></li>
+          <li><span class="num">2</span><span><strong>Baixe o ebook e receba seu certificado</strong> com um código exclusivo.</span></li>
+          <li><span class="num">3</span><span><strong>Cadastre o certificado</strong> na página de prêmios e ganhe <strong id="prize-name">um prêmio</strong>.</span></li>
+        </ol>
+      </section>
+
+      <section class="card" id="comprar">
+        <p class="muted">Pagamento único</p>
+        <p class="price" id="price">—</p>
+
+        <div id="test-mode" class="alert warn hidden" style="margin-top:12px">
+          Modo de teste: nenhuma cobrança real será feita.
+        </div>
+
+        <form id="buy-form" novalidate>
+          <label>Nome completo
+            <input name="name" autocomplete="name" required>
+          </label>
+          <label>E-mail
+            <input name="email" type="email" autocomplete="email" required>
+          </label>
+          <label>Celular com DDD
+            <input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(11) 91234-5678" required>
+          </label>
+          <label>CPF
+            <input name="document" inputmode="numeric" placeholder="000.000.000-00" required>
+          </label>
+          <div id="error" class="alert error hidden"></div>
+          <button class="btn block" type="submit">Comprar com Pix</button>
+          <p class="muted center">Guarde o e-mail informado: ele será usado para resgatar o prêmio.</p>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site"><div class="container">© VT LB</div></footer>
+
+  <script src="/js/common.js"></script>
+  <script>
+    api('/api/config').then((cfg) => {
+      document.title = cfg.ebookTitle;
+      document.getElementById('title').textContent = cfg.ebookTitle;
+      document.getElementById('subtitle').textContent = cfg.ebookSubtitle;
+      document.getElementById('price').textContent = formatBRL(cfg.priceCents);
+      document.getElementById('prize-name').textContent = cfg.prizeTitle;
+      if (cfg.testMode) document.getElementById('test-mode').classList.remove('hidden');
+    });
+
+    const form = document.getElementById('buy-form');
+    const error = document.getElementById('error');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      error.classList.add('hidden');
+      const button = form.querySelector('button');
+      button.disabled = true;
+      button.textContent = 'Gerando Pix…';
+      try {
+        const data = Object.fromEntries(new FormData(form));
+        const order = await api('/api/orders', { method: 'POST', body: data });
+        location.href = `/pedido/${order.id}`;
+      } catch (err) {
+        showError(error, err.message);
+        button.disabled = false;
+        button.textContent = 'Comprar com Pix';
+      }
+    });
+  </script>
+</body>
+</html>

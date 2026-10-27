@@ -1,0 +1,19 @@
+{
+  "name": "vt-lb",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Venda de ebook com certificado e resgate de prêmio",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4"
+  }
+}
