@@ -4,13 +4,18 @@ Site de venda de ebook com Pix (BlackCat), certificado e resgate de prêmio.
 
 ## Como funciona
 
-1. **Compra** (`/`): a pessoa preenche nome, e-mail, celular e CPF e recebe um Pix (QR Code + copia e cola).
-2. **Pagamento confirmado** (`/pedido/...`): a página atualiza sozinha. Depois do pagamento, aparecem:
-   - o botão para **baixar o ebook**;
-   - o **código do certificado** (ex.: `VTLB-8F3K-2Q9X`);
-   - o link para o **certificado** com o nome da pessoa (dá para imprimir ou salvar em PDF).
-3. **Prêmio** (`/premio`): a pessoa digita o código do certificado e o e-mail da compra, e o prêmio é liberado.
-   Cada certificado vale um prêmio só. Se a pessoa voltar depois, vê o mesmo prêmio de novo, mas não ganha outro.
+1. **Início** (`/`): foto, título, texto e o botão **Fazer meu cadastro**.
+2. **Cadastro** (`/cadastro`): a pessoa **anexa o certificado** (PDF) e informa **nome e CPF**.
+   Quem ainda não tem certificado clica em **Comprar certificado**.
+3. **Certificado** (`/comprar`): valor e formulário para gerar o **Pix**.
+4. **Pagamento confirmado** (`/pedido/...`): a página atualiza sozinha e libera o download do
+   **ebook com o certificado na primeira página** (com o nome da pessoa e um código exclusivo, ex.: `VTLB-8F3K-2Q9X`).
+   Um botão leva de volta ao cadastro.
+5. No cadastro, o site confere se o PDF anexado é um certificado emitido pelo site e se pertence ao **CPF** de
+   quem comprou. Se estiver tudo certo, o **prêmio** é liberado. Cada certificado vale um prêmio só.
+
+O código do certificado fica gravado dentro do PDF. Por isso a pessoa precisa anexar o **mesmo arquivo que baixou**,
+sem editar (um print ou uma foto do certificado não é aceito).
 
 ## Rodar no computador
 
@@ -31,7 +36,7 @@ pedido mostra um botão **"Simular pagamento"** para testar o fluxo completo.
 
 Coloque na pasta `private/`:
 
-- `ebook.pdf`: o ebook;
+- `ebook.pdf`: o ebook (o site junta o certificado de cada comprador na primeira página);
 - `premio.pdf`: o prêmio (opcional; se não houver arquivo, a página só mostra a mensagem do prêmio).
 
 Esses arquivos **não vão para o GitHub** (estão no `.gitignore`) e só podem ser baixados por links exclusivos
@@ -39,11 +44,11 @@ de quem pagou ou resgatou o prêmio.
 
 Título, preço (em centavos: `4790` = R$ 47,90) e texto do prêmio ficam no `.env`.
 
-## Textos e capa da página de venda
+## Foto e textos da página inicial
 
-- **Capa:** coloque a imagem em `public/img/capa.jpg`.
-- **Textos:** abra `public/index.html` e troque os textos entre `[colchetes]` (Sobre o Ebook, O que você vai
-  aprender, Quem é o autor). Para destacar uma parte em azul, use `<mark>texto</mark>`.
+- **Foto:** coloque a imagem em `public/img/capa.jpg`.
+- **Textos:** abra `public/index.html` e troque os textos entre `[colchetes]` pelos seus.
+  Para destacar uma parte em azul, use `<mark>texto</mark>`.
 
 ## Ligar a BlackCat (cobrança de verdade)
 
@@ -76,6 +81,7 @@ src/server.js            rotas e regras (pedidos, webhook, certificado, prêmio)
 src/payments/blackcat.js integração com a BlackCat
 src/payments/mock.js     modo de teste
 src/db.js                banco de dados (SQLite)
-public/                  páginas: index, pedido, certificado, prêmio
+src/certificatePdf.js    gera o PDF ebook + certificado e lê o código no cadastro
+public/                  páginas: início, cadastro, comprar, pedido
 private/                 ebook e prêmio (protegidos)
 ```

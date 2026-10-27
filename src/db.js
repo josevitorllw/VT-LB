@@ -33,6 +33,7 @@ db.exec(`
     email       TEXT NOT NULL,
     issued_at   TEXT NOT NULL DEFAULT (datetime('now')),
     redeemed_at TEXT,
+    registered_name TEXT,
     prize_token TEXT
   );
 `);

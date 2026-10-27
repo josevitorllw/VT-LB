@@ -10,7 +10,7 @@
   <header class="site">
     <div class="container">
       <a class="brand" href="/">📘 VT LB</a>
-      <nav><a href="/premio">🎁 Resgatar prêmio</a></nav>
+      <nav><a href="/cadastro">📝 Cadastro</a></nav>
     </div>
   </header>
 
@@ -32,21 +32,22 @@
       <!-- Pago -->
       <section id="paid" class="card hidden">
         <div class="alert ok">🎉 Pagamento confirmado! Obrigado pela compra, <strong id="buyer"></strong>.</div>
-        <div class="section-title">🏆 Seu certificado</div>
-        <p class="muted">Guarde este código. Você vai usá-lo, junto com seu e-mail, para resgatar o prêmio.</p>
-        <div class="code-box" id="cert-code"></div>
+        <div class="section-title">📜 Seu certificado</div>
+        <ol class="steps">
+          <li><span class="num">1</span><span><strong>Baixe o ebook.</strong> O seu certificado está na primeira página.</span></li>
+          <li><span class="num">2</span><span><strong>Volte e faça o cadastro</strong> anexando esse mesmo arquivo PDF, com seu nome e CPF.</span></li>
+        </ol>
         <div class="actions">
-          <a class="btn" id="download">📖 Baixar o ebook</a>
-          <a class="btn secondary" id="cert-link">📜 Ver e imprimir certificado</a>
-          <a class="btn secondary" href="/premio" id="prize-link">🎁 Resgatar meu prêmio</a>
+          <a class="btn" id="download">📥 Baixar ebook com certificado</a>
+          <a class="btn-cta" href="/cadastro" style="margin:0">Fazer meu cadastro</a>
         </div>
-        <p class="muted" style="margin-top:16px">Salve o link desta página para voltar quando quiser.</p>
+        <p class="muted" style="margin-top:16px">Não edite o arquivo: ele é a prova da sua compra. Salve o link desta página para baixar de novo quando quiser.</p>
       </section>
 
       <!-- Falhou -->
       <section id="failed" class="card center hidden">
         <div class="alert error">Este pagamento não foi concluído ou expirou.</div>
-        <p><a class="btn" href="/">Tentar novamente</a></p>
+        <p><a class="btn" href="/comprar">Tentar novamente</a></p>
       </section>
 
       <div id="error" class="alert error hidden"></div>
@@ -74,10 +75,7 @@
           timer = setTimeout(load, 5000);
         } else if (order.status === 'paid') {
           $('buyer').textContent = order.name.split(' ')[0];
-          $('cert-code').textContent = order.certificateCode;
           $('download').href = order.downloadUrl;
-          $('cert-link').href = order.certificateUrl;
-          $('prize-link').href = `/premio?codigo=${encodeURIComponent(order.certificateCode)}`;
           show('paid');
         } else {
           show('failed');

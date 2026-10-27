@@ -70,15 +70,6 @@ h2 { font-size: 1.3rem; margin: 0 0 12px; }
   background: #dcdfe4;
 }
 
-.price-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin: 14px 0 6px;
-}
-.price-row strong { font-size: 1.3rem; }
-.price-row span { color: var(--muted); font-size: .9rem; }
-
 .btn-cta {
   display: block;
   width: 100%;
@@ -107,22 +98,6 @@ h2 { font-size: 1.3rem; margin: 0 0 12px; }
   .btn-cta { animation: none; }
 }
 
-.sticky-cta {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 10;
-  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
-  background: rgba(244, 245, 247, .94);
-  backdrop-filter: blur(6px);
-  border-top: 1px solid var(--line);
-  transform: translateY(110%);
-  transition: transform .25s ease;
-}
-.sticky-cta.show { transform: translateY(0); }
-.sticky-cta .btn-cta { max-width: 608px; margin: 0 auto; }
-
 .section-title {
   background: var(--section);
   border-left: 5px solid var(--accent);
@@ -148,6 +123,26 @@ mark {
 .buy-box { margin-top: 32px; }
 .buy-box .big-price { font-size: 2rem; font-weight: 800; color: var(--accent); margin: 0; line-height: 1.2; }
 .buy-box .under { color: var(--muted); font-size: .9rem; margin: 2px 0 0; }
+
+.dropzone {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+  padding: 22px 16px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  cursor: pointer;
+  font-size: 1.05rem;
+}
+.dropzone:hover { background: #e3f9ea; }
+.dropzone.filled { border-style: solid; }
+.dropzone .dz-icon { font-size: 2rem; line-height: 1.2; }
+.dropzone .muted { font-weight: 400; word-break: break-all; }
+
+.no-cert { margin-top: 20px; border-left: 5px solid var(--cta); }
 
 /* ---------- Componentes ---------- */
 

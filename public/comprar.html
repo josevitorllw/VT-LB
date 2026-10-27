@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Certificado</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="brand" href="/">📘 VT LB</a>
+      <nav><a href="/cadastro">📝 Cadastro</a></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div class="section-title" style="margin-top:0">📜 Certificado</div>
+      <p>Você recebe o <strong id="ebook-title">ebook</strong> com o seu <mark>certificado</mark> na primeira página.
+        Depois é só voltar e fazer o cadastro para ganhar <mark id="prize-name">seu prêmio</mark>.</p>
+
+      <section class="card buy-box" style="margin-top:16px">
+        <p class="muted" style="margin:0">Valor</p>
+        <p class="big-price" id="price">—</p>
+        <p class="under">pagamento único no Pix · liberação na hora</p>
+
+        <div id="test-mode" class="alert warn hidden" style="margin-top:12px">
+          Modo de teste: nenhuma cobrança real será feita.
+        </div>
+
+        <form id="buy-form" novalidate>
+          <label>Nome completo
+            <input name="name" autocomplete="name" required>
+          </label>
+          <label>CPF
+            <input name="document" inputmode="numeric" placeholder="000.000.000-00" required>
+          </label>
+          <label>E-mail
+            <input name="email" type="email" autocomplete="email" required>
+          </label>
+          <label>Celular com DDD
+            <input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(11) 91234-5678" required>
+          </label>
+          <p class="muted" style="margin:0">Use o mesmo CPF depois, no cadastro. E-mail e celular são pedidos pelo banco para gerar o Pix.</p>
+          <div id="error" class="alert error hidden"></div>
+          <button class="btn-cta" type="submit" style="margin-bottom:0">Pagar com Pix</button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site"><div class="container">© VT LB</div></footer>
+
+  <script src="/js/common.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    api('/api/config').then((cfg) => {
+      $('ebook-title').textContent = cfg.ebookTitle;
+      $('prize-name').textContent = cfg.prizeTitle;
+      $('price').textContent = formatBRL(cfg.priceCents);
+      if (cfg.testMode) $('test-mode').classList.remove('hidden');
+    });
+
+    const form = $('buy-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('error').classList.add('hidden');
+      const button = form.querySelector('button[type=submit]');
+      button.disabled = true;
+      button.textContent = 'Gerando Pix…';
+      try {
+        const data = Object.fromEntries(new FormData(form));
+        const order = await api('/api/orders', { method: 'POST', body: data });
+        location.href = `/pedido/${order.id}`;
+      } catch (err) {
+        showError($('error'), err.message);
+        button.disabled = false;
+        button.textContent = 'Pagar com Pix';
+      }
+    });
+  </script>
+</body>
+</html>

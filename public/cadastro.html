@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cadastro</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="brand" href="/">📘 VT LB</a>
+      <nav><a href="/comprar">📜 Comprar certificado</a></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <section id="register">
+        <div class="section-title" style="margin-top:0">📝 Cadastro</div>
+        <p>Anexe o certificado que veio no seu ebook e preencha seus dados.</p>
+
+        <form id="register-form" class="card" novalidate>
+          <label class="dropzone" id="dropzone">
+            <input type="file" name="file" id="file" accept="application/pdf,.pdf" hidden>
+            <span class="dz-icon" aria-hidden="true">📎</span>
+            <strong id="dz-title">Anexar certificado</strong>
+            <span class="muted" id="dz-hint">Toque aqui e escolha o arquivo PDF do ebook</span>
+          </label>
+
+          <label>Nome completo
+            <input name="name" autocomplete="name" required>
+          </label>
+          <label>CPF
+            <input name="cpf" inputmode="numeric" placeholder="000.000.000-00" required>
+          </label>
+
+          <div id="error" class="alert error hidden"></div>
+          <button class="btn block" type="submit">Enviar cadastro</button>
+        </form>
+
+        <div class="card no-cert">
+          <p class="help-title" style="margin:0 0 6px">🤔 <mark>Ainda não tem certificado?</mark></p>
+          <p style="margin:0 0 12px">Compre agora no Pix e receba o ebook com o certificado na hora.</p>
+          <a class="btn-cta" href="/comprar" style="margin:0">Comprar certificado</a>
+        </div>
+      </section>
+
+      <section class="card center hidden" id="result">
+        <div style="font-size:3rem">🎁</div>
+        <p class="muted" id="result-hello"></p>
+        <h1 style="font-size:1.8rem" id="prize-title"></h1>
+        <p id="prize-description"></p>
+        <div id="already" class="alert warn hidden">Este certificado já tinha sido cadastrado. Aqui está o seu prêmio novamente.</div>
+        <div class="actions">
+          <a class="btn hidden" id="prize-download">Baixar meu prêmio</a>
+          <a class="btn secondary" href="/">Voltar ao início</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site"><div class="container">© VT LB</div></footer>
+
+  <script src="/js/common.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const form = $('register-form');
+
+    $('file').addEventListener('change', () => {
+      const file = $('file').files[0];
+      $('dropzone').classList.toggle('filled', Boolean(file));
+      $('dz-title').textContent = file ? '✅ Certificado anexado' : 'Anexar certificado';
+      $('dz-hint').textContent = file ? `${file.name} · toque para trocar` : 'Toque aqui e escolha o arquivo PDF do ebook';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('error').classList.add('hidden');
+      const file = $('file').files[0];
+      if (!file) return showError($('error'), 'Anexe o certificado (o arquivo PDF que você baixou depois da compra).');
+
+      const button = form.querySelector('button[type=submit]');
+      button.disabled = true;
+      button.textContent = 'Conferindo certificado…';
+      try {
+        const query = new URLSearchParams({ name: form.name.value, cpf: form.cpf.value });
+        const res = await fetch(`/api/register?${query}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/pdf' },
+          body: file,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Não foi possível enviar. Tente novamente.');
+
+        $('result-hello').textContent = `Parabéns, ${data.name.split(' ')[0]}! Cadastro confirmado.`;
+        $('prize-title').textContent = data.prizeTitle;
+        $('prize-description').textContent = data.prizeDescription;
+        $('already').classList.toggle('hidden', !data.alreadyRedeemed);
+        if (data.prizeUrl) {
+          $('prize-download').href = data.prizeUrl;
+          $('prize-download').classList.remove('hidden');
+        }
+        $('register').classList.add('hidden');
+        $('result').classList.remove('hidden');
+        window.scrollTo(0, 0);
+      } catch (err) {
+        showError($('error'), err.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Enviar cadastro';
+      }
+    });
+  </script>
+</body>
+</html>

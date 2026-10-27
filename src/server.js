@@ -7,7 +7,8 @@ const QRCode = require('qrcode');
 const config = require('./config');
 const db = require('./db');
 const payments = require('./payments');
-const { certificateCode, normalizeCertificateCode, token } = require('./codes');
+const { certificateCode, token } = require('./codes');
+const { buildEbookWithCertificate, readCertificateCode } = require('./certificatePdf');
 
 const app = express();
 app.set('trust proxy', true);
@@ -32,7 +33,7 @@ function isValidCpf(value) {
   return true;
 }
 
-// Limite simples de tentativas por IP (protege o resgate contra chute de códigos).
+// Limite simples de tentativas por IP.
 function rateLimit({ windowMs, max }) {
   const hits = new Map();
   return (req, res, next) => {
@@ -112,9 +113,9 @@ app.post('/api/orders', rateLimit({ windowMs: 10 * 60 * 1000, max: 10 }), async 
   const document = String(req.body.document || '').replace(/\D/g, '');
 
   if (name.length < 3) return res.status(400).json({ error: 'Informe seu nome completo.' });
-  if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
-  if (phone.length < 10 || phone.length > 11) return res.status(400).json({ error: 'Informe um telefone com DDD.' });
   if (!isValidCpf(document)) return res.status(400).json({ error: 'CPF inválido.' });
+  if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Informe um e-mail válido.' });
+  if (phone.length < 10 || phone.length > 11) return res.status(400).json({ error: 'Informe um celular com DDD.' });
 
   const order = {
     id: crypto.randomUUID(),
@@ -161,10 +162,7 @@ app.get('/api/orders/:id', async (req, res) => {
     body.pixQrImage = order.pix_qr_image;
   }
   if (order.status === 'paid') {
-    const cert = getCertificateByOrder.get(order.id);
     body.downloadUrl = `/download/${order.download_token}`;
-    body.certificateCode = cert.code;
-    body.certificateUrl = `/certificado/${cert.code}`;
   }
   res.json(body);
 });
@@ -203,72 +201,87 @@ app.post('/api/webhooks/blackcat', async (req, res) => {
   }
 });
 
-app.get('/api/certificates/:code', (req, res) => {
-  const code = normalizeCertificateCode(req.params.code);
-  const cert = code && getCertificate.get(code);
-  if (!cert) return res.status(404).json({ error: 'Certificado não encontrado.' });
-  res.json({
-    code: cert.code,
-    name: cert.name,
-    issuedAt: cert.issued_at,
-    ebookTitle: config.ebook.title,
-  });
-});
+// Cadastro: a pessoa anexa o PDF do certificado e informa nome e CPF.
+// O arquivo vai no corpo da requisição; nome e CPF vão na URL.
+app.post(
+  '/api/register',
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 15 }),
+  express.raw({ type: () => true, limit: '60mb' }),
+  async (req, res) => {
+    const name = String(req.query.name || '').trim();
+    const cpf = String(req.query.cpf || '').replace(/\D/g, '');
+    const file = Buffer.isBuffer(req.body) ? req.body : null;
 
-app.post('/api/redeem', rateLimit({ windowMs: 15 * 60 * 1000, max: 10 }), (req, res) => {
-  const code = normalizeCertificateCode(req.body.code);
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const cert = code && getCertificate.get(code);
+    if (!file || !file.length) return res.status(400).json({ error: 'Anexe o arquivo do certificado.' });
+    if (name.length < 3) return res.status(400).json({ error: 'Informe seu nome completo.' });
+    if (!isValidCpf(cpf)) return res.status(400).json({ error: 'CPF inválido.' });
+    if (file.subarray(0, 5).toString('latin1') !== '%PDF-') {
+      return res.status(400).json({ error: 'O certificado precisa ser o arquivo PDF que você baixou depois da compra.' });
+    }
 
-  if (!cert || cert.email !== email) {
-    return res.status(400).json({ error: 'Certificado não encontrado. Confira o código e o e-mail usado na compra.' });
+    const code = await readCertificateCode(file);
+    const cert = code && getCertificate.get(code);
+    if (!cert) {
+      return res.status(400).json({
+        error: 'Não reconhecemos este certificado. Anexe o arquivo PDF que você baixou depois da compra, sem editar.',
+      });
+    }
+    if (getOrder.get(cert.order_id).document !== cpf) {
+      return res.status(400).json({ error: 'Este certificado não pertence ao CPF informado.' });
+    }
+
+    if (!cert.redeemed_at) {
+      db.prepare(
+        "UPDATE certificates SET redeemed_at = datetime('now'), prize_token = ?, registered_name = ? WHERE code = ? AND redeemed_at IS NULL"
+      ).run(token(), name, code);
+    }
+    const saved = getCertificate.get(code);
+
+    // Quem já cadastrou pode ver o prêmio de novo, mas não ganha outro.
+    res.json({
+      alreadyRedeemed: Boolean(cert.redeemed_at),
+      name: saved.registered_name || saved.name,
+      prizeTitle: config.prize.title,
+      prizeDescription: config.prize.description,
+      prizeUrl: config.prize.file && fs.existsSync(config.prize.file) ? `/premio/download/${saved.prize_token}` : null,
+    });
   }
-
-  let prizeToken = cert.prize_token;
-  if (!cert.redeemed_at) {
-    prizeToken = token();
-    db.prepare("UPDATE certificates SET redeemed_at = datetime('now'), prize_token = ? WHERE code = ? AND redeemed_at IS NULL")
-      .run(prizeToken, code);
-    prizeToken = getCertificate.get(code).prize_token;
-  }
-
-  // Quem já resgatou pode voltar e ver o prêmio de novo, mas não ganha outro.
-  res.json({
-    alreadyRedeemed: Boolean(cert.redeemed_at),
-    name: cert.name,
-    prizeTitle: config.prize.title,
-    prizeDescription: config.prize.description,
-    prizeUrl: config.prize.file && fs.existsSync(config.prize.file) ? `/premio/download/${prizeToken}` : null,
-  });
-});
+);
 
 // ---------- Downloads protegidos ----------
 
-function sendPrivateFile(res, file, downloadName) {
-  if (!file || !fs.existsSync(file)) {
-    return res.status(404).send('Arquivo ainda não disponível. Fale com o suporte.');
-  }
-  res.download(file, downloadName);
-}
-
-app.get('/download/:token', (req, res) => {
+app.get('/download/:token', async (req, res) => {
   const order = db.prepare("SELECT * FROM orders WHERE download_token = ? AND status = 'paid'").get(req.params.token);
   if (!order) return res.status(404).send('Link inválido.');
-  sendPrivateFile(res, config.ebook.file, `${config.ebook.title}${path.extname(config.ebook.file)}`);
+  try {
+    const pdf = await buildEbookWithCertificate(getCertificateByOrder.get(order.id));
+    const filename = `${config.ebook.title} - com certificado.pdf`;
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    });
+    res.send(Buffer.from(pdf));
+  } catch (err) {
+    console.error('[download] erro ao gerar PDF:', err);
+    res.status(500).send('Não foi possível gerar o arquivo agora. Tente novamente.');
+  }
 });
 
 app.get('/premio/download/:token', (req, res) => {
   const cert = db.prepare('SELECT * FROM certificates WHERE prize_token = ?').get(req.params.token);
   if (!cert) return res.status(404).send('Link inválido.');
-  sendPrivateFile(res, config.prize.file, `${config.prize.title}${path.extname(config.prize.file)}`);
+  const file = config.prize.file;
+  if (!file || !fs.existsSync(file)) return res.status(404).send('Arquivo ainda não disponível. Fale com o suporte.');
+  res.download(file, `${config.prize.title}${path.extname(file)}`);
 });
 
 // ---------- Páginas ----------
 
 app.get('/', page('index.html'));
+app.get('/cadastro', page('cadastro.html'));
+app.get('/comprar', page('comprar.html'));
 app.get('/pedido/:id', page('pedido.html'));
-app.get('/certificado/:code', page('certificado.html'));
-app.get('/premio', page('premio.html'));
+app.get('/premio', (req, res) => res.redirect('/cadastro'));
 app.use(express.static(publicDir, { index: false }));
 
 app.listen(config.port, () => {
