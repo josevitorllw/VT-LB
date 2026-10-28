@@ -1,24 +1,43 @@
 // Integração com a BlackCat.
 //
 // IMPORTANTE: os nomes dos campos abaixo seguem o padrão mais comum da API da
-// BlackCat (chave no cabeçalho X-API-Key, valores em centavos, status PENDING/PAID).
-// Antes de vender de verdade, confira na documentação do seu painel da BlackCat e
-// ajuste SÓ este arquivo se algo for diferente. O resto do site não muda.
+// BlackCat (valores em centavos, status PENDING/PAID). Antes de vender de verdade,
+// rode "npm run testar-blackcat" e ajuste SÓ este arquivo se algo for diferente.
 
 const config = require('../config');
 
-const { apiUrl, apiKey, createPath, statusPath } = config.blackcat;
+const { apiUrl, secretKey, publicKey, createPath, statusPath } = config.blackcat;
+
+const basic = (user, pass) => `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
+
+// Formas de autenticação usadas por gateways desse tipo. Escolha com BLACKCAT_AUTH no .env.
+const AUTH_MODES = {
+  'x-api-key': () => ({ 'X-API-Key': secretKey }),
+  bearer: () => ({ Authorization: `Bearer ${secretKey}` }),
+  'basic-secret': () => ({ Authorization: basic(secretKey, 'x') }),
+  'basic-public-secret': () => ({ Authorization: basic(publicKey, secretKey) }),
+  'basic-secret-public': () => ({ Authorization: basic(secretKey, publicKey) }),
+  'public-secret-headers': () => ({ 'X-Public-Key': publicKey, 'X-Secret-Key': secretKey }),
+};
+
+let authMode = config.blackcat.authMode;
+function setAuthMode(mode) {
+  authMode = mode;
+}
 
 async function request(method, urlPath, body) {
-  if (!apiUrl || !apiKey) {
-    throw new Error('BlackCat não configurada: preencha BLACKCAT_API_URL e BLACKCAT_API_KEY no .env');
+  if (!apiUrl || !secretKey) {
+    throw new Error('BlackCat não configurada: preencha BLACKCAT_API_URL e BLACKCAT_SECRET_KEY no .env');
+  }
+  if (!AUTH_MODES[authMode]) {
+    throw new Error(`BLACKCAT_AUTH inválido: "${authMode}". Use: ${Object.keys(AUTH_MODES).join(', ')}`);
   }
   const res = await fetch(apiUrl + urlPath, {
     method,
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      'X-API-Key': apiKey,
+      ...AUTH_MODES[authMode](),
     },
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(20000),
@@ -136,4 +155,4 @@ function webhookTransactionId(body) {
   return id == null ? null : String(id);
 }
 
-module.exports = { createPix, getStatus, webhookTransactionId, describeShape };
+module.exports = { createPix, getStatus, webhookTransactionId, describeShape, AUTH_MODES, setAuthMode };

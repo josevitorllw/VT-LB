@@ -74,7 +74,8 @@ dados de acordo com a LGPD: use só para o que você informou às pessoas.
 2. Preencha no `.env`:
    ```
    BLACKCAT_API_URL=https://api.blackcatpay.com.br   # confira no painel/documentação da BlackCat
-   BLACKCAT_API_KEY=sua-chave
+   BLACKCAT_SECRET_KEY=sk_live_...                   # chave secreta
+   BLACKCAT_PUBLIC_KEY=pk_live_...                   # chave pública
    PUBLIC_URL=https://seu-site.com.br                # endereço público do site, sem barra no final
    WEBHOOK_SECRET=um-texto-longo-e-aleatorio
    ```
@@ -82,12 +83,13 @@ dados de acordo com a LGPD: use só para o que você informou às pessoas.
    ```bash
    npm run testar-blackcat -- "Seu Nome" SEUCPF seu@email.com 11912345678
    ```
+   - O teste experimenta as formas de autenticação e, no fim, diz a linha `BLACKCAT_AUTH=...` para colocar no `.env`.
    - `✅ Tudo certo!`: pode seguir.
    - `401/403`: chave errada. `404`: endereço ou caminho da API errado (`BLACKCAT_API_URL`, `BLACKCAT_CREATE_PATH`,
      `BLACKCAT_STATUS_PATH`).
    - "Estrutura da resposta": a BlackCat respondeu num formato diferente; mande essa linha (ela não tem dados
      pessoais) para ajustar `src/payments/blackcat.js`.
-4. Mude `PAYMENT_PROVIDER=blackcat` no `.env` e reinicie o site.
+4. Coloque no `.env` a linha `BLACKCAT_AUTH=...` que o teste mostrou, mude `PAYMENT_PROVIDER=blackcat` e reinicie o site.
 5. Faça uma compra real de valor baixo (dá para baixar o preço temporariamente em `EBOOK_PRICE_CENTS`) e confira se o
    ebook é liberado sozinho depois do Pix.
 

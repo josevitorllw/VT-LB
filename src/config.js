@@ -31,7 +31,12 @@ module.exports = {
 
   blackcat: {
     apiUrl: (env.BLACKCAT_API_URL || '').replace(/\/$/, ''),
-    apiKey: env.BLACKCAT_API_KEY || '',
+    // Chave secreta (sk_live_...). BLACKCAT_API_KEY continua funcionando como nome antigo.
+    secretKey: env.BLACKCAT_SECRET_KEY || env.BLACKCAT_API_KEY || '',
+    // Chave pública (pk_live_...). Só é usada se a forma de autenticação pedir.
+    publicKey: env.BLACKCAT_PUBLIC_KEY || '',
+    // Forma de autenticação. O "npm run testar-blackcat" descobre qual é a certa para a sua conta.
+    authMode: (env.BLACKCAT_AUTH || 'x-api-key').toLowerCase(),
     createPath: env.BLACKCAT_CREATE_PATH || '/api/sales/create-sale',
     statusPath: env.BLACKCAT_STATUS_PATH || '/api/sales/{id}/status',
   },
