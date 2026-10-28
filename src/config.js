@@ -4,27 +4,25 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const env = process.env;
 
-function resolveFile(value) {
-  if (!value) return null;
-  return path.isAbsolute(value) ? value : path.join(root, value);
-}
-
 module.exports = {
   root,
   port: Number(env.PORT) || 3000,
-  publicUrl: (env.PUBLIC_URL || 'http://localhost:3000').replace(/\/$/, ''),
+  // Endereço público do site. Na Railway, se PUBLIC_URL não for definido, usa o domínio que ela gera.
+  publicUrl: (env.PUBLIC_URL
+    || (env.RAILWAY_PUBLIC_DOMAIN ? `https://${env.RAILWAY_PUBLIC_DOMAIN}` : 'http://localhost:3000')).replace(/\/$/, ''),
+  // No ar (Railway ou NODE_ENV=production) o modo de teste não deixa simular pagamento.
+  isProduction: env.NODE_ENV === 'production' || Boolean(env.RAILWAY_ENVIRONMENT_NAME || env.RAILWAY_ENVIRONMENT),
+  allowSimulate: env.ALLOW_SIMULATE === 'true',
 
   ebook: {
     title: env.EBOOK_TITLE || 'Meu Ebook',
     subtitle: env.EBOOK_SUBTITLE || '',
     priceCents: Number(env.EBOOK_PRICE_CENTS) || 4790,
-    file: resolveFile(env.EBOOK_FILE || 'private/ebook.pdf'),
   },
 
   prize: {
     title: env.PRIZE_TITLE || 'Bônus exclusivo',
     description: env.PRIZE_DESCRIPTION || 'Seu certificado foi validado.',
-    file: resolveFile(env.PRIZE_FILE ?? 'private/premio.pdf'),
   },
 
   paymentProvider: (env.PAYMENT_PROVIDER || 'mock').toLowerCase(),
@@ -43,5 +41,4 @@ module.exports = {
 
   webhookSecret: env.WEBHOOK_SECRET || '',
   adminPassword: env.ADMIN_PASSWORD || '',
-  dbFile: path.join(root, 'data', 'loja.db'),
 };

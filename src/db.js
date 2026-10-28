@@ -1,10 +1,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
-const config = require('./config');
+const { dataDir } = require('./files');
 
-fs.mkdirSync(path.dirname(config.dbFile), { recursive: true });
-const db = new DatabaseSync(config.dbFile);
+fs.mkdirSync(dataDir, { recursive: true });
+const db = new DatabaseSync(path.join(dataDir, 'loja.db'));
 
 db.exec(`
   PRAGMA journal_mode = WAL;

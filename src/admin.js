@@ -6,6 +6,8 @@ const express = require('express');
 const config = require('./config');
 const db = require('./db');
 const { campos } = require('./fields');
+const files = require('./files');
+const { runBlackcatTest } = require('./payments/blackcatTest');
 
 const router = express.Router();
 
@@ -135,6 +137,49 @@ function sendCsv(res, name, rows) {
 router.get('/cadastros.csv', (req, res) => sendCsv(res, 'cadastros', registrations()));
 router.get('/vendas.csv', (req, res) => sendCsv(res, 'vendas', sales()));
 
+// ---------- Arquivos (ebook, prêmio, foto) ----------
+
+// O navegador manda o arquivo puro no corpo; o nome original vem no cabeçalho X-Filename.
+router.post('/arquivos/:kind', express.raw({ type: () => true, limit: '200mb' }), (req, res) => {
+  try {
+    const name = decodeURIComponent(String(req.headers['x-filename'] || ''));
+    files.saveUpload(req.params.kind, name, req.body);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+function fileRow(kind) {
+  const spec = files.KINDS[kind];
+  const current = files.describe({ ebook: files.ebookFile, premio: files.prizeFile, capa: files.coverFile }[kind]());
+  const info = current
+    ? `✅ ${esc(current.name)} · ${(current.size / 1024 / 1024).toFixed(2)} MB`
+    : '⚠️ Nenhum arquivo enviado';
+  return `<div class="file-row">
+    <div><strong>${esc(spec.label)}</strong><br><span class="muted">${info}</span></div>
+    <label class="btn secondary">Enviar arquivo
+      <input type="file" hidden data-kind="${kind}" accept="${spec.extensions.join(',')}">
+    </label>
+  </div>`;
+}
+
+// ---------- Teste da BlackCat ----------
+
+router.post('/testar-blackcat', express.json(), async (req, res) => {
+  const { name, document, email, phone } = req.body || {};
+  if (!name || !document || !email || !phone) return res.status(400).json({ lines: ['Preencha todos os campos.'] });
+  res.json(await runBlackcatTest({ name, document, email, phone }));
+});
+
+function paymentStatus() {
+  if (config.paymentProvider !== 'mock') return ['ok', `Pagamentos: ${esc(config.paymentProvider)} (cobrança real).`];
+  if (config.isProduction && !config.allowSimulate) {
+    return ['warn', 'Vendas FECHADAS: configure a BlackCat (PAYMENT_PROVIDER=blackcat) para começar a vender.'];
+  }
+  return ['warn', 'Modo de TESTE: o pagamento é simulado, nenhuma cobrança real.'];
+}
+
 // ---------- Página ----------
 
 function table(rows, empty) {
@@ -172,6 +217,10 @@ router.get('/', (req, res) => {
     tr:last-child td { border-bottom: 0; }
     .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
     .bar .btn { padding: 10px 14px; font-size: .9rem; }
+    .file-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+      padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .file-row:last-child { border-bottom: 0; }
+    .file-row .btn { padding: 10px 14px; font-size: .9rem; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -183,6 +232,8 @@ router.get('/', (req, res) => {
   </header>
   <main>
     <div class="container">
+      <div class="alert ${paymentStatus()[0]}" style="margin-bottom:16px">${paymentStatus()[1]}</div>
+
       <div class="stats">
         <div class="stat"><strong>${paid.n}</strong>vendas pagas</div>
         <div class="stat"><strong>${esc(brl(paid.total))}</strong>arrecadado</div>
@@ -196,8 +247,60 @@ router.get('/', (req, res) => {
       <div class="bar"><div class="section-title" style="flex:1">💰 Vendas</div>
         <a class="btn" href="/admin/vendas.csv">⬇ Baixar planilha</a></div>
       ${table(sold, 'Nenhuma venda ainda.')}
+
+      <div class="section-title">📁 Arquivos do site</div>
+      <div class="card" style="padding:8px 20px">
+        ${['ebook', 'premio', 'capa'].map(fileRow).join('')}
+      </div>
+      <p class="muted">O ebook recebe o certificado de cada comprador na primeira página. Enviar de novo substitui o anterior.</p>
+
+      <div class="section-title">🔌 Testar conexão com a BlackCat</div>
+      <form class="card" id="bc-test" style="margin-top:0">
+        <p class="muted" style="margin:0">Cria um Pix de teste (no valor do ebook) com os seus dados. Se ninguém pagar, ele expira sozinho.</p>
+        <label>Seu nome <input name="name" required></label>
+        <label>Seu CPF <input name="document" inputmode="numeric" required></label>
+        <label>Seu e-mail <input name="email" type="email" required></label>
+        <label>Seu celular com DDD <input name="phone" inputmode="numeric" required></label>
+        <button class="btn" type="submit">Testar conexão</button>
+        <pre id="bc-result" class="pix-code hidden" style="white-space:pre-wrap;font-size:.85rem"></pre>
+      </form>
     </div>
   </main>
+  <script>
+    document.querySelectorAll('input[type=file][data-kind]').forEach((input) => {
+      input.addEventListener('change', async () => {
+        const file = input.files[0];
+        if (!file) return;
+        const label = input.parentElement;
+        label.firstChild.textContent = 'Enviando… ';
+        const res = await fetch('/admin/arquivos/' + input.dataset.kind, {
+          method: 'POST',
+          headers: { 'X-Filename': encodeURIComponent(file.name), 'Content-Type': 'application/octet-stream' },
+          body: file,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) alert(data.error || 'Não foi possível enviar.');
+        location.reload();
+      });
+    });
+
+    document.getElementById('bc-test').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const out = document.getElementById('bc-result');
+      const button = e.target.querySelector('button');
+      button.disabled = true;
+      out.textContent = 'Testando…';
+      out.classList.remove('hidden');
+      const res = await fetch('/admin/testar-blackcat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+      });
+      const data = await res.json().catch(() => ({ lines: ['Erro ao testar.'] }));
+      out.textContent = data.lines.join('\n');
+      button.disabled = false;
+    });
+  </script>
 </body>
 </html>`);
 });

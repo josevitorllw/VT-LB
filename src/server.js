@@ -11,6 +11,7 @@ const { certificateCode, token } = require('./codes');
 const { buildEbookWithCertificate, readCertificateCode } = require('./certificatePdf');
 const { publicFields, validateAnswers } = require('./fields');
 const adminRouter = require('./admin');
+const files = require('./files');
 
 const app = express();
 app.set('trust proxy', true);
@@ -20,6 +21,11 @@ const publicDir = path.join(config.root, 'public');
 const page = (file) => (req, res) => res.sendFile(path.join(publicDir, file));
 
 // ---------- Utilitários ----------
+
+// Modo de teste (pagamento simulado): só no computador, ou no ar se ALLOW_SIMULATE=true.
+const testMode = () => config.paymentProvider === 'mock' && (!config.isProduction || config.allowSimulate);
+// No ar sem gateway configurado: o site aparece, mas as vendas ficam fechadas.
+const salesClosed = () => config.paymentProvider === 'mock' && !testMode();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -104,11 +110,14 @@ app.get('/api/config', (req, res) => {
     ebookSubtitle: config.ebook.subtitle,
     priceCents: config.ebook.priceCents,
     prizeTitle: config.prize.title,
-    testMode: config.paymentProvider === 'mock',
+    testMode: testMode(),
   });
 });
 
 app.post('/api/orders', rateLimit({ windowMs: 10 * 60 * 1000, max: 10 }), async (req, res) => {
+  if (salesClosed()) {
+    return res.status(503).json({ error: 'As vendas ainda não foram abertas. Volte em breve!' });
+  }
   const name = String(req.body.name || '').trim();
   const email = String(req.body.email || '').trim().toLowerCase();
   const phone = String(req.body.phone || '').replace(/\D/g, '');
@@ -156,7 +165,7 @@ app.get('/api/orders/:id', async (req, res) => {
     name: order.name,
     amountCents: order.amount_cents,
     ebookTitle: config.ebook.title,
-    testMode: config.paymentProvider === 'mock',
+    testMode: testMode(),
   };
   if (order.status === 'pending') {
     body.pixCode = order.pix_code;
@@ -170,7 +179,7 @@ app.get('/api/orders/:id', async (req, res) => {
 
 // Só existe no modo de teste.
 app.post('/api/orders/:id/simulate-payment', (req, res) => {
-  if (config.paymentProvider !== 'mock') return res.status(404).end();
+  if (!testMode()) return res.status(404).end();
   const order = getOrder.get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Pedido não encontrado.' });
   payments.markPaid(order.gateway_id);
@@ -248,7 +257,7 @@ function prizeResponse(cert, alreadyRedeemed) {
     name: cert.registered_name || cert.name,
     prizeTitle: config.prize.title,
     prizeDescription: config.prize.description,
-    prizeUrl: config.prize.file && fs.existsSync(config.prize.file) ? `/premio/download/${cert.prize_token}` : null,
+    prizeUrl: files.prizeFile() ? `/premio/download/${cert.prize_token}` : null,
   };
 }
 
@@ -292,8 +301,8 @@ app.get('/download/:token', async (req, res) => {
 app.get('/premio/download/:token', (req, res) => {
   const cert = db.prepare('SELECT * FROM certificates WHERE prize_token = ?').get(req.params.token);
   if (!cert) return res.status(404).send('Link inválido.');
-  const file = config.prize.file;
-  if (!file || !fs.existsSync(file)) return res.status(404).send('Arquivo ainda não disponível. Fale com o suporte.');
+  const file = files.prizeFile();
+  if (!file) return res.status(404).send('Arquivo ainda não disponível. Fale com o suporte.');
   res.download(file, `${config.prize.title}${path.extname(file)}`);
 });
 
@@ -305,9 +314,27 @@ app.get('/comprar', page('comprar.html'));
 app.get('/pedido/:id', page('pedido.html'));
 app.get('/premio', (req, res) => res.redirect('/cadastro'));
 app.use('/admin', adminRouter);
+// Foto da página inicial: a enviada pelo painel tem prioridade sobre public/img/capa.jpg.
+app.get('/img/capa.jpg', (req, res) => {
+  const file = files.coverFile();
+  if (!file) return res.status(404).end();
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(file);
+});
 app.use(express.static(publicDir, { index: false }));
 
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   console.log(`Site rodando em http://localhost:${config.port}`);
-  console.log(`Pagamento: ${config.paymentProvider === 'mock' ? 'MODO DE TESTE' : 'BlackCat'}`);
+  const mode = config.paymentProvider !== 'mock' ? config.paymentProvider
+    : testMode() ? 'MODO DE TESTE (pagamento simulado)' : 'VENDAS FECHADAS (configure a BlackCat)';
+  console.log(`Pagamento: ${mode}`);
+  console.log(`Dados em: ${files.dataDir}`);
+});
+
+// Desliga com calma quando a Railway reinicia o site (não corrompe o banco de dados).
+process.on('SIGTERM', () => {
+  server.close(() => {
+    db.close();
+    process.exit(0);
+  });
 });

@@ -9,6 +9,7 @@ const path = require('node:path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const config = require('./config');
 const { normalizeCertificateCode } = require('./codes');
+const { ebookFile: getEbookFile } = require('./files');
 
 const KEYWORD_PREFIX = 'vtlb-cert:';
 const BLACK = rgb(0.07, 0.07, 0.07);
@@ -58,7 +59,7 @@ async function buildEbookWithCertificate(cert) {
   const doc = await PDFDocument.create();
   await drawCertificatePage(doc, cert);
 
-  const ebookFile = config.ebook.file;
+  const ebookFile = getEbookFile();
   if (ebookFile && path.extname(ebookFile).toLowerCase() === '.pdf' && fs.existsSync(ebookFile)) {
     try {
       const ebook = await PDFDocument.load(fs.readFileSync(ebookFile), { ignoreEncryption: true });

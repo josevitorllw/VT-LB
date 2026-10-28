@@ -98,10 +98,14 @@ Como o site sabe que o Pix foi pago:
 - além disso, a página do pedido consulta a BlackCat a cada 5 segundos enquanto a pessoa espera;
 - em qualquer caso, o site confirma o status direto na BlackCat antes de liberar o ebook (um aviso falso não libera nada).
 
-## Hospedagem
+## Colocar no ar (Railway)
 
-O site precisa de um servidor Node.js (não funciona no GitHub Pages). Opções simples: Railway, Render ou uma VPS.
-Os pedidos ficam salvos em `data/loja.db` (SQLite); use um disco persistente e faça backup desse arquivo.
+Siga o passo a passo em **[RAILWAY.md](RAILWAY.md)**. Resumo:
+- o banco de dados e os arquivos enviados pelo painel ficam no **volume** da Railway (detectado sozinho);
+- o ebook, o prêmio e a foto são enviados pelo painel `/admin` (seção **Arquivos do site**);
+- no ar, enquanto `PAYMENT_PROVIDER` não for `blackcat`, as **vendas ficam fechadas** (o "Simular pagamento"
+  só funciona com `ALLOW_SIMULATE=true`);
+- a conexão com a BlackCat pode ser testada pelo botão do `/admin`.
 
 ## Estrutura
 
@@ -112,7 +116,8 @@ src/payments/mock.js     modo de teste
 src/db.js                banco de dados (SQLite)
 src/certificatePdf.js    gera o PDF ebook + certificado e lê o código no cadastro
 src/campos.js            os 5 dados pedidos depois do certificado
-src/admin.js             painel /admin (cadastros, vendas e planilhas)
+src/admin.js             painel /admin (cadastros, vendas, planilhas, arquivos e teste da BlackCat)
+src/files.js             onde ficam banco de dados e arquivos (pasta data/ ou volume da Railway)
 public/                  páginas: início, cadastro, comprar, pedido
 private/                 ebook e prêmio (protegidos)
 ```
