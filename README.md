@@ -69,22 +69,32 @@ dados de acordo com a LGPD: use só para o que você informou às pessoas.
 
 ## Ligar a BlackCat (cobrança de verdade)
 
-1. No painel da BlackCat, gere sua **chave de API**.
-2. No `.env`:
+1. No painel da BlackCat, gere sua **chave de API** (normalmente em Integrações / API / Credenciais).
+   **Nunca** coloque a chave no GitHub nem mande por chat: ela fica só no `.env` (ou nas variáveis da hospedagem).
+2. Preencha no `.env`:
    ```
-   PAYMENT_PROVIDER=blackcat
+   BLACKCAT_API_URL=https://api.blackcatpay.com.br   # confira no painel/documentação da BlackCat
    BLACKCAT_API_KEY=sua-chave
-   PUBLIC_URL=https://seu-site.com.br
+   PUBLIC_URL=https://seu-site.com.br                # endereço público do site, sem barra no final
    WEBHOOK_SECRET=um-texto-longo-e-aleatorio
    ```
-3. Confira na documentação da BlackCat se o endereço da API (`BLACKCAT_API_URL`) e os caminhos
-   (`BLACKCAT_CREATE_PATH`, `BLACKCAT_STATUS_PATH`) estão iguais aos do `.env.example`. Se os nomes dos campos
-   forem diferentes, ajuste **só** o arquivo `src/payments/blackcat.js`.
-4. O site informa à BlackCat, em cada cobrança, o link de notificação:
-   `https://seu-site.com.br/api/webhooks/blackcat?secret=SEU_WEBHOOK_SECRET`.
-   Por segurança, o site não confia no conteúdo da notificação: ele sempre consulta a BlackCat para confirmar
-   o pagamento antes de liberar o ebook.
-5. Faça uma compra real de valor baixo para testar antes de divulgar.
+3. Teste a conexão (cria um Pix de verdade, que expira sozinho se ninguém pagar):
+   ```bash
+   npm run testar-blackcat -- "Seu Nome" SEUCPF seu@email.com 11912345678
+   ```
+   - `✅ Tudo certo!`: pode seguir.
+   - `401/403`: chave errada. `404`: endereço ou caminho da API errado (`BLACKCAT_API_URL`, `BLACKCAT_CREATE_PATH`,
+     `BLACKCAT_STATUS_PATH`).
+   - "Estrutura da resposta": a BlackCat respondeu num formato diferente; mande essa linha (ela não tem dados
+     pessoais) para ajustar `src/payments/blackcat.js`.
+4. Mude `PAYMENT_PROVIDER=blackcat` no `.env` e reinicie o site.
+5. Faça uma compra real de valor baixo (dá para baixar o preço temporariamente em `EBOOK_PRICE_CENTS`) e confira se o
+   ebook é liberado sozinho depois do Pix.
+
+Como o site sabe que o Pix foi pago:
+- a cada cobrança, ele informa à BlackCat o link de aviso `https://seu-site.com.br/api/webhooks/blackcat?secret=...`;
+- além disso, a página do pedido consulta a BlackCat a cada 5 segundos enquanto a pessoa espera;
+- em qualquer caso, o site confirma o status direto na BlackCat antes de liberar o ebook (um aviso falso não libera nada).
 
 ## Hospedagem
 

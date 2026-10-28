@@ -6,7 +6,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/server.js",
-    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js"
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js",
+    "testar-blackcat": "node --disable-warning=ExperimentalWarning scripts/testar-blackcat.js"
   },
   "engines": {
     "node": ">=22.13"

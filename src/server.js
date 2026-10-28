@@ -133,9 +133,8 @@ app.post('/api/orders', rateLimit({ windowMs: 10 * 60 * 1000, max: 10 }), async 
 
   try {
     const pix = await payments.createPix(order);
-    const qrImage = pix.qrImage
-      ? (String(pix.qrImage).startsWith('data:') ? pix.qrImage : `data:image/png;base64,${pix.qrImage}`)
-      : await QRCode.toDataURL(pix.pixCode, { margin: 1, width: 320 });
+    // Gera a imagem do QR Code aqui mesmo a partir do "copia e cola" (não depende do formato da imagem do gateway).
+    const qrImage = await QRCode.toDataURL(pix.pixCode, { margin: 1, width: 320 });
     db.prepare('UPDATE orders SET gateway_id = ?, pix_code = ?, pix_qr_image = ? WHERE id = ?')
       .run(pix.gatewayId, pix.pixCode, qrImage, order.id);
     res.json({ id: order.id });
